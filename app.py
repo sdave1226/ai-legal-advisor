@@ -15,6 +15,7 @@ st.set_page_config(
 
 # Hugging Face API settings
 HUGGINGFACE_API_KEY = st.secrets.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
+print(f"Hugging Face API Key: {HUGGINGFACE_API_KEY}")
 API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
