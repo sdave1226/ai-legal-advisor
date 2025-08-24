@@ -1,143 +1,85 @@
 import streamlit as st
-import datetime
-from typing import Optional
-from dataclasses import dataclass
-from openai import OpenAI
+import openai
+from datetime import datetime
+import os
 
-# Initialize OpenAI client with key from Streamlit secrets
-try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-except Exception:
-    client = None
-    st.error("⚠️ OpenAI API key is missing! Please set it in Streamlit Secrets.")
+# Hugging Face for fallback
+from transformers import pipeline
 
-# Streamlit page config
-st.set_page_config(
-    page_title="AI Legal Advisor",
-    page_icon="⚖️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Load OpenAI API key from environment variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Categories
-LEGAL_CATEGORIES = {
-    "Contract Law": "Issues related to agreements and obligations",
-    "Employment Law": "Workplace rights and employer obligations",
-    "Property Law": "Real estate and property disputes",
-    "Family Law": "Divorce, custody, and family matters",
-    "Consumer Rights": "Purchases, warranties, and consumer protection",
-    "Civil Law": "Personal injury, defamation, and civil disputes"
-}
+# Load Hugging Face fallback model (small for free usage)
+hf_generator = pipeline("text-generation", model="distilgpt2")
 
-# Knowledge base fallback
-FALLBACK_INFO = {
-    "Contract Law": "Contracts require offer, acceptance, consideration, and mutual consent.",
-    "Employment Law": "Employees have rights regarding wages, harassment, and safe work environments.",
-    "Property Law": "Property disputes often relate to ownership, boundaries, or landlord-tenant laws.",
-    "Family Law": "Family law governs divorce, custody, and adoption processes.",
-    "Consumer Rights": "Consumers are protected against fraud and have warranty rights.",
-    "Civil Law": "Civil law covers negligence, defamation, and personal injury cases."
-}
+# Streamlit app
+st.set_page_config(page_title="AI Legal Advisor", layout="wide")
 
-@dataclass
-class LegalQuery:
-    question: str
-    category: str
-    timestamp: datetime.datetime
-    response: Optional[str] = None
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Home", "About", "Legal Cases"])
 
-
-# Function to get GPT response
-def get_gpt_response(question: str, category: str) -> str:
-    if not client:
-        return f"⚠️ GPT not available. Here's some general info:\n\n{FALLBACK_INFO.get(category, '')}"
-
-    try:
-        prompt = f"""You are an AI Legal Advisor. Provide clear, concise, and general legal information (not legal advice).
-Question: {question}
-Category: {category}
-Answer in simple language, and include a short disclaimer at the end."""
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # ✅ Correct GPT model
-            messages=[
-                {"role": "system", "content": "You are a helpful legal information assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.5
-        )
-
-        return response.choices[0].message.content.strip()
-
-    except Exception as e:
-        return f"⚠️ Error fetching GPT response ({e}). Using fallback:\n\n{FALLBACK_INFO.get(category, '')}"
-
-
-# Navigation state
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "Home"
+# Session state to store queries
 if "queries" not in st.session_state:
-    st.session_state.queries = []
+    st.session_state["queries"] = []
 
-# Sidebar
-with st.sidebar:
-    st.header("Navigation")
-    if st.button("🏠 Home"): 
-        st.session_state.current_page = "Home"
-    if st.button("ℹ️ About"): 
-        st.session_state.current_page = "About"
-    if st.button("📋 Legal Cases"): 
-        st.session_state.current_page = "Legal Cases"
+if page == "Home":
+    st.title("⚖️ Ask Your Legal Question")
 
-    st.markdown("---")
-    st.header("Legal Topics")
-    selected_category = st.selectbox("Select a legal area:", list(LEGAL_CATEGORIES.keys()))
+    user_question = st.text_area("Enter your question:")
+    legal_area = st.selectbox("Select a legal area:", ["Contract Law", "Criminal Law", "Family Law", "Property Law", "Other"])
 
-    st.markdown("---")
-    st.warning("This tool provides general info, not legal advice.")
+    if st.button("Get Legal Info"):
+        answer = None
+        try:
+            # Try OpenAI first
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a legal information assistant. Provide general legal information, not advice."},
+                    {"role": "user", "content": f"Legal area: {legal_area}. Question: {user_question}"}
+                ],
+                max_tokens=200
+            )
+            answer = response["choices"][0]["message"]["content"]
 
-# Main Content
-st.markdown('<h1 style="text-align:center;">⚖️ AI Legal Advisor</h1>', unsafe_allow_html=True)
+        except openai.error.RateLimitError as e:
+            st.warning("⚠️ OpenAI quota exceeded. Using fallback model.")
+            # Hugging Face fallback
+            hf_response = hf_generator(
+                f"Legal area: {legal_area}. Question: {user_question}. Answer:",
+                max_length=200,
+                num_return_sequences=1
+            )
+            answer = hf_response[0]["generated_text"]
 
-if st.session_state.current_page == "Home":
-    st.header("Ask Your Legal Question")
-    question = st.text_area("Enter your question:", height=150)
-    if st.button("Get Legal Info", type="primary"):
-        if question.strip():
-            with st.spinner("Analyzing your question with AI..."):
-                response = get_gpt_response(question, selected_category)
-                st.markdown(f"### ✅ Answer\n{response}")
-                st.session_state.queries.append(
-                    LegalQuery(question, selected_category, datetime.datetime.now(), response)
-                )
-        else:
-            st.warning("Please enter a question.")
+        except Exception as e:
+            st.error(f"⚠️ Error fetching response: {str(e)}")
+            answer = "Sorry, something went wrong."
 
-elif st.session_state.current_page == "About":
-    st.header("About AI Legal Advisor")
-    st.write("""
-    This AI-powered tool provides general legal information using GPT and a basic knowledge base.
-    **Disclaimer:** This is for educational purposes only and does not replace professional legal advice.
-    """)
+        # Save query and answer
+        st.session_state["queries"].append({
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "area": legal_area,
+            "question": user_question,
+            "answer": answer
+        })
 
-elif st.session_state.current_page == "Legal Cases":
-    st.header("Sample Legal Cases")
-    st.info("Educational examples only.")
-    for cat, desc in LEGAL_CATEGORIES.items():
-        st.markdown(f"**{cat}**: {desc}")
+        # Show Answer
+        st.subheader("✅ Answer")
+        st.write(answer)
 
-# Query History
-st.subheader("Your Previous Queries")
-if st.session_state.queries:
-    for q in st.session_state.queries:
-        st.write(f"**{q.timestamp.strftime('%Y-%m-%d %H:%M')}** | {q.category}")
-        st.write(f"Q: {q.question}")
-        st.write(f"A: {q.response}")
-        st.markdown("---")
-else:
-    st.info("No queries yet.")
+    # Show previous queries
+    st.subheader("Your Previous Queries")
+    for q in st.session_state["queries"]:
+        st.markdown(f"**{q['time']} | {q['area']}**")
+        st.markdown(f"Q: {q['question']}")
+        st.markdown(f"A: {q['answer']}")
+        st.write("---")
 
-# Footer
-st.markdown("---")
-st.caption("AI Legal Advisor v3.0 | Powered by Gauri | Educational Use Only")
+elif page == "About":
+    st.title("ℹ️ About")
+    st.write("This AI-powered tool provides **general legal information**. It does not replace professional legal advice.")
+
+elif page == "Legal Cases":
+    st.title("📚 Legal Cases")
+    st.write("Here you could display famous legal cases, summaries, or allow uploading case documents for analysis.")
