@@ -1,4 +1,4 @@
-from openai import OpenAI
+from open import OpenAI
 
 # Put your API key here temporarily (for testing only)
 client = OpenAI(api_key="sk-your-api-key-here")

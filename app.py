@@ -6,6 +6,8 @@ import os
 # Hugging Face for fallback
 from transformers import pipeline
 
+huggingface_pipeline = pipeline("text-generation", model="nlpaueb/legal-bert-base-uncased")
+
 # Load OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
