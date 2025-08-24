@@ -253,8 +253,14 @@ elif st.session_state.current_page == "Legal Cases":
 st.subheader("Your Previous Queries")
 if st.session_state.queries:
     for q in st.session_state.queries:
-        st.write(f"Q: {q.question}  **{q.timestamp.strftime('%Y-%m-%d %H:%M')}** | {q.category}")
-        st.write(f"A: {q.response}")
+        # Question + Category + Timestamp (timestamp at end, small font)
+        st.markdown(
+            f"**Q:** {q.question}  |  *{q.category}* "
+            f"<span style='font-size: 12px; color: gray;'>({q.timestamp.strftime('%Y-%m-%d %H:%M')})</span>",
+            unsafe_allow_html=True
+        )
+        # Answer
+        st.write(f"**A:** {q.response}")
         st.markdown("---")
 else:
     st.info("No queries yet.")
