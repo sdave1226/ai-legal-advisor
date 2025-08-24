@@ -6,7 +6,10 @@ import openai
 import os
 
 # Load API key from Streamlit secrets
-openai.api_key = st.secrets.get("OPENAI_API_KEY")
+openai.api_key = st.secrets.get["OPENAI_API_KEY"]
+
+if not openai.api_key:
+    st.error("OpenAI API key is missing! Please set it in Streamlit Secrets.")
 
 # Streamlit page config
 st.set_page_config(
