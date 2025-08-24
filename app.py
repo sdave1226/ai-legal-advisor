@@ -1,15 +1,15 @@
 import streamlit as st
 import datetime
-from typing import Dict, Optional
+from typing import Optional
 from dataclasses import dataclass
-import openai
-import os
+from openai import OpenAI
 
-# Load API key from Streamlit secrets
-openai.api_key = st.secrets.get["OPENAI_API_KEY"]
-
-if not openai.api_key:
-    st.error("OpenAI API key is missing! Please set it in Streamlit Secrets.")
+# Initialize OpenAI client with key from Streamlit secrets
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except Exception:
+    client = None
+    st.error("⚠️ OpenAI API key is missing! Please set it in Streamlit Secrets.")
 
 # Streamlit page config
 st.set_page_config(
@@ -46,9 +46,10 @@ class LegalQuery:
     timestamp: datetime.datetime
     response: Optional[str] = None
 
+
 # Function to get GPT response
 def get_gpt_response(question: str, category: str) -> str:
-    if not openai.api_key:
+    if not client:
         return f"⚠️ GPT not available. Here's some general info:\n\n{FALLBACK_INFO.get(category, '')}"
 
     try:
@@ -57,8 +58,8 @@ Question: {question}
 Category: {category}
 Answer in simple language, and include a short disclaimer at the end."""
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",  # lightweight and cost-efficient
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # ✅ Correct GPT model
             messages=[
                 {"role": "system", "content": "You are a helpful legal information assistant."},
                 {"role": "user", "content": prompt}
@@ -68,8 +69,10 @@ Answer in simple language, and include a short disclaimer at the end."""
         )
 
         return response.choices[0].message.content.strip()
+
     except Exception as e:
-        return f"⚠️ Error fetching GPT response. Using fallback:\n\n{FALLBACK_INFO.get(category, '')}"
+        return f"⚠️ Error fetching GPT response ({e}). Using fallback:\n\n{FALLBACK_INFO.get(category, '')}"
+
 
 # Navigation state
 if "current_page" not in st.session_state:
@@ -80,9 +83,12 @@ if "queries" not in st.session_state:
 # Sidebar
 with st.sidebar:
     st.header("Navigation")
-    if st.button("🏠 Home"): st.session_state.current_page = "Home"
-    if st.button("ℹ️ About"): st.session_state.current_page = "About"
-    if st.button("📋 Legal Cases"): st.session_state.current_page = "Legal Cases"
+    if st.button("🏠 Home"): 
+        st.session_state.current_page = "Home"
+    if st.button("ℹ️ About"): 
+        st.session_state.current_page = "About"
+    if st.button("📋 Legal Cases"): 
+        st.session_state.current_page = "Legal Cases"
 
     st.markdown("---")
     st.header("Legal Topics")
@@ -102,7 +108,9 @@ if st.session_state.current_page == "Home":
             with st.spinner("Analyzing your question with AI..."):
                 response = get_gpt_response(question, selected_category)
                 st.markdown(f"### ✅ Answer\n{response}")
-                st.session_state.queries.append(LegalQuery(question, selected_category, datetime.datetime.now(), response))
+                st.session_state.queries.append(
+                    LegalQuery(question, selected_category, datetime.datetime.now(), response)
+                )
         else:
             st.warning("Please enter a question.")
 
