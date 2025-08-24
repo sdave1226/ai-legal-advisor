@@ -15,7 +15,11 @@ st.set_page_config(
 
 # Hugging Face API settings
 HUGGINGFACE_API_KEY = st.secrets.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
-print(f"Hugging Face API Key: {HUGGINGFACE_API_KEY}")
+# After setting HUGGINGFACE_API_KEY
+if not HUGGINGFACE_API_KEY:
+    st.error("❌ Hugging Face API key is missing. Please set it in Streamlit Secrets or .env file.")
+else:
+    st.success("✅ Hugging Face API key loaded successfully.")
 API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
@@ -130,4 +134,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("AI Legal Advisor v3.0 | Powered by Gaurishankar Kwat | Educational Use Only")
+st.caption("AI Legal Advisor v3.0 | Powered by Gaurishankar Kewat | Educational Use Only")
