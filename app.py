@@ -15,7 +15,7 @@ st.set_page_config(
 
 # Hugging Face API settings
 HUGGINGFACE_API_KEY = st.secrets.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
 # Categories

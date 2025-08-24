@@ -1,5 +1,4 @@
 streamlit
-openai
-transformers
-torch
-sentencepiece
+requests
+dataclasses
+python-dotenv
