@@ -16,10 +16,6 @@ st.set_page_config(
 # Hugging Face API settings
 HUGGINGFACE_API_KEY = st.secrets.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
 # After setting HUGGINGFACE_API_KEY
-if not HUGGINGFACE_API_KEY:
-    st.error("❌ Hugging Face API key is missing. Please set it in Streamlit Secrets or .env file.")
-else:
-    st.success("✅ Hugging Face API key loaded successfully.")
 API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
 headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
@@ -51,17 +47,43 @@ class LegalQuery:
     response: Optional[str] = None
 
 # Hugging Face API call
+# def get_ai_response(question: str, category: str) -> str:
+#     if not HUGGINGFACE_API_KEY:
+#         return f"⚠️ Hugging Face API key missing. Add it in Streamlit Secrets."
+    
+#     prompt = f"""You are an AI Legal Advisor. Provide general legal information (not legal advice).
+# Question: {question}
+# Category: {category}
+# Answer in clear, simple language and include a short disclaimer at the end."""
+    
+#     try:
+#         response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
+#         if response.status_code == 200:
+#             result = response.json()
+#             if isinstance(result, list) and "generated_text" in result[0]:
+#                 return result[0]["generated_text"]
+#             else:
+#                 return "⚠️ Unexpected response format from Hugging Face API."
+#         else:
+#             return f"⚠️ API Error: {response.status_code}, {response.text}"
+#     except Exception as e:
+#         return f"⚠️ Error contacting Hugging Face API: {str(e)}"
+
 def get_ai_response(question: str, category: str) -> str:
     if not HUGGINGFACE_API_KEY:
         return f"⚠️ Hugging Face API key missing. Add it in Streamlit Secrets."
-    
+
     prompt = f"""You are an AI Legal Advisor. Provide general legal information (not legal advice).
 Question: {question}
 Category: {category}
 Answer in clear, simple language and include a short disclaimer at the end."""
-    
+
     try:
+        st.write(f"🔍 Debug: Sending prompt to Hugging Face: {prompt}")
         response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
+        st.write(f"🔍 Debug: API Response Status Code: {response.status_code}")
+        st.write(f"🔍 Debug: Raw API Response: {response.text}")
+
         if response.status_code == 200:
             result = response.json()
             if isinstance(result, list) and "generated_text" in result[0]:
