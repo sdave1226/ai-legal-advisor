@@ -1,12 +1,9 @@
 import streamlit as st
 import datetime
-from typing import Dict, Optional
+from typing import Optional
 from dataclasses import dataclass
-import openai
+import requests
 import os
-
-# Load API key from Streamlit secrets
-openai.api_key = st.secrets.get("OPENAI_API_KEY", None)
 
 # Streamlit page config
 st.set_page_config(
@@ -15,6 +12,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Hugging Face API settings
+HUGGINGFACE_API_KEY = st.secrets.get("HUGGINGFACE_API_KEY") or os.getenv("HUGGINGFACE_API_KEY")
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
 # Categories
 LEGAL_CATEGORIES = {
@@ -43,30 +45,28 @@ class LegalQuery:
     timestamp: datetime.datetime
     response: Optional[str] = None
 
-# Function to get GPT response
-def get_gpt_response(question: str, category: str) -> str:
-    if not openai.api_key:
-        return f"⚠️ GPT not available. Here's some general info:\n\n{FALLBACK_INFO.get(category, '')}"
-
-    try:
-        prompt = f"""You are an AI Legal Advisor. Provide clear, concise, and general legal information (not legal advice).
+# Hugging Face API call
+def get_ai_response(question: str, category: str) -> str:
+    if not HUGGINGFACE_API_KEY:
+        return f"⚠️ Hugging Face API key missing. Add it in Streamlit Secrets."
+    
+    prompt = f"""You are an AI Legal Advisor. Provide general legal information (not legal advice).
 Question: {question}
 Category: {category}
-Answer in simple language, and include a short disclaimer at the end."""
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",  # lightweight and cost-efficient
-            messages=[
-                {"role": "system", "content": "You are a helpful legal information assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.5
-        )
-
-        return response.choices[0].message.content.strip()
+Answer in clear, simple language and include a short disclaimer at the end."""
+    
+    try:
+        response = requests.post(API_URL, headers=headers, json={"inputs": prompt})
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and "generated_text" in result[0]:
+                return result[0]["generated_text"]
+            else:
+                return "⚠️ Unexpected response format from Hugging Face API."
+        else:
+            return f"⚠️ API Error: {response.status_code}, {response.text}"
     except Exception as e:
-        return f"⚠️ Error fetching GPT response. Using fallback:\n\n{FALLBACK_INFO.get(category, '')}"
+        return f"⚠️ Error contacting Hugging Face API: {str(e)}"
 
 # Navigation state
 if "current_page" not in st.session_state:
@@ -96,8 +96,8 @@ if st.session_state.current_page == "Home":
     question = st.text_area("Enter your question:", height=150)
     if st.button("Get Legal Info", type="primary"):
         if question.strip():
-            with st.spinner("Analyzing your question with AI..."):
-                response = get_gpt_response(question, selected_category)
+            with st.spinner("Analyzing your question using AI..."):
+                response = get_ai_response(question, selected_category)
                 st.markdown(f"### ✅ Answer\n{response}")
                 st.session_state.queries.append(LegalQuery(question, selected_category, datetime.datetime.now(), response))
         else:
@@ -106,7 +106,7 @@ if st.session_state.current_page == "Home":
 elif st.session_state.current_page == "About":
     st.header("About AI Legal Advisor")
     st.write("""
-    This AI-powered tool provides general legal information using GPT and a basic knowledge base.
+    This AI-powered tool provides general legal information using free Hugging Face models and a basic knowledge base.
     **Disclaimer:** This is for educational purposes only and does not replace professional legal advice.
     """)
 
@@ -129,4 +129,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("AI Legal Advisor v3.0 | Powered by OpenAI | Educational Use Only")
+st.caption("AI Legal Advisor v3.0 | Powered by Hugging Face | Educational Use Only")
