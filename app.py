@@ -129,4 +129,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("AI Legal Advisor v3.0 | Powered by Hugging Face | Educational Use Only")
+st.caption("AI Legal Advisor v3.0 | Powered by Gaurishankar Kwat | Educational Use Only")
