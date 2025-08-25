@@ -471,7 +471,7 @@ def find_best_answer(question: str, category: str) -> str:
     )
 
     # Lower threshold to 50 to catch short exact matches
-    if score > 60:
+    if score > 50:
         return faqs[idx]["answer"]
     else:
         return "Sorry, no close match found. Please try rephrasing your question."
