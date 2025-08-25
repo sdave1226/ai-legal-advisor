@@ -183,13 +183,13 @@ def find_best_answer(question: str, category: str) -> str:
         return "No data available for this category."
     
     # Extract questions
-    faq_questions = [item["q"] for item in faqs]
+    faq_questions = [item["question"] for item in faqs]
     
     # Find best match using rapidfuzz
     best_match, score, idx = process.extractOne(question, faq_questions, scorer=fuzz.token_sort_ratio)
     
     if score > 60:  # Acceptable threshold
-        return faqs[idx]["a"]
+        return faqs[idx]["answer"]
     else:
         return "Sorry, no close match found. Please try rephrasing your question."
 
